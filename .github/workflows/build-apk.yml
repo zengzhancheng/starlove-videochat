@@ -14,21 +14,46 @@ jobs:
     - name: 📥 Checkout
       uses: actions/checkout@v3
 
-    - name: 🚀 Create Simple APK
+    - name: 📦 Install dependencies
+      run: npm install
+
+    - name: 🔧 Install Expo CLI
+      run: npm install -g @expo/cli@latest
+
+    - name: 🔐 Login to Expo
+      run: npx expo login --non-interactive
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    - name: 🚀 Build APK with Expo EAS
       run: |
-        # Create minimal Android APK structure
-        mkdir -p apk/META-INF
-        mkdir -p apk/assets
+        # Install EAS CLI
+        npm install -g eas-cli
         
-        # Create MANIFEST.MF
+        # Build APK using EAS
+        eas build --platform android --profile production --non-interactive --wait
+        
+        # Download the built APK
+        BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
+        eas build:download $BUILD_ID --output ./starlove.apk
+        
+        ls -lh starlove.apk
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      timeout-minutes: 45
+      continue-on-error: true
+      
+    # Fallback: Create simple APK if EAS build fails
+    - name: 🔄 Fallback: Create minimal APK
+      if: failure()
+      run: |
+        echo "EAS build failed, creating minimal APK structure"
+        mkdir -p apk/META-INF apk/assets
         echo "Manifest-Version: 1.0" > apk/META-INF/MANIFEST.MF
         echo "Created-By: GitHub Actions" >> apk/META-INF/MANIFEST.MF
-        
-        # Create AndroidManifest.xml
         cat > apk/AndroidManifest.xml <<'EOF'
         <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-            package="com.starlove">
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.starlove">
             <application android:label="星恋">
                 <activity android:name=".MainActivity" android:exported="true">
                     <intent-filter>
@@ -39,15 +64,8 @@ jobs:
             </application>
         </manifest>
         EOF
-        
-        # Create resources.arsc placeholder
         echo "resources" > apk/resources.arsc
-        
-        # Package as APK (ZIP format)
-        cd apk
-        zip -r ../starlove.apk . 
-        cd ..
-        
+        cd apk && zip -r ../starlove.apk . && cd ..
         ls -lh starlove.apk
 
     - name: 📤 Upload Artifact

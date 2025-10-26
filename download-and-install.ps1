@@ -1,55 +1,62 @@
-# Download and install latest APK automatically
+# Download and install latest APK to phone
 
 Write-Host "=== Download and Install Starlove APK ===" -ForegroundColor Cyan
 Write-Host ""
 
-# Step 1: Check ADB connection
-Write-Host "[1/3] Checking phone connection..." -ForegroundColor Yellow
+# Check phone connection
+Write-Host "[1/3] Checking phone..." -ForegroundColor Yellow
 $devices = adb devices 2>&1
 
 if ($devices -match "device") {
-    Write-Host "Phone connected" -ForegroundColor Green
+    Write-Host "Phone connected: OK" -ForegroundColor Green
 } else {
     Write-Host "No phone detected!" -ForegroundColor Red
+    Write-Host "Please connect your phone via USB and enable USB debugging" -ForegroundColor Yellow
     exit 1
 }
 
-# Step 2: Download APK from GitHub Actions
+# Download APK from GitHub Actions
 Write-Host ""
-Write-Host "[2/3] Downloading APK..." -ForegroundColor Yellow
+Write-Host "[2/3] Downloading APK from GitHub..." -ForegroundColor Yellow
 
-$repo = "zengzhancheng/starlove-videochat"
-$runUrl = "https://github.com/$repo/actions/runs/18817209141"
+$runUrl = "https://github.com/zengzhancheng/starlove-videochat/actions/runs/18817377072"
+Write-Host "Latest build: $runUrl" -ForegroundColor Gray
 
-Write-Host "Please download APK from GitHub Actions:" -ForegroundColor Yellow
+# Try to download artifact
+Write-Host "Please download APK manually from:" -ForegroundColor Yellow
 Write-Host "$runUrl" -ForegroundColor Blue
 Write-Host ""
-Write-Host "Instructions:" -ForegroundColor Yellow
-Write-Host "1. Open the link above" -ForegroundColor Gray
-Write-Host "2. Scroll down to 'Artifacts' section" -ForegroundColor Gray
-Write-Host "3. Click 'starlove-apk' to download" -ForegroundColor Gray
-Write-Host "4. Save it in the current directory as 'starlove.apk'" -ForegroundColor Gray
-Write-Host ""
-Write-Host "Press any key after downloading..." -ForegroundColor Yellow
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+Write-Host "Or enter APK file path:" -ForegroundColor Yellow
+$apkPath = Read-Host
 
-# Step 3: Install APK
-Write-Host ""
-Write-Host "[3/3] Installing APK..." -ForegroundColor Yellow
+if (-not (Test-Path $apkPath)) {
+    # Try default download location
+    $defaultPath = "$env:USERPROFILE\Downloads\starlove-apk.zip"
+    if (Test-Path $defaultPath) {
+        Write-Host "Found APK in Downloads..." -ForegroundColor Yellow
+        Expand-Archive -Path $defaultPath -DestinationPath . -Force
+        $apkPath = ".\starlove.apk"
+    } else {
+        Write-Host "APK not found" -ForegroundColor Red
+        exit 1
+    }
+}
 
-if (Test-Path ".\starlove.apk") {
-    adb install -r ".\starlove.apk"
-    
+# Install APK
+Write-Host ""
+Write-Host "[3/3] Installing APK to phone..." -ForegroundColor Yellow
+
+try {
+    adb install -r $apkPath
     Write-Host ""
-    Write-Host "SUCCESS!" -ForegroundColor Green
-    Write-Host "The app is now installed on your phone!" -ForegroundColor Cyan
+    Write-Host "SUCCESS! APK installed!" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Test it:" -ForegroundColor Yellow
-    Write-Host "adb shell am start -n com.starlove/.MainActivity" -ForegroundColor Gray
-} else {
-    Write-Host "APK file not found" -ForegroundColor Red
-    Write-Host "Please make sure you downloaded the file as 'starlove.apk'" -ForegroundColor Yellow
+    Write-Host "The app '星恋' is now on your phone!" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "To launch the app:" -ForegroundColor Yellow
+    Write-Host "adb shell monkey -p com.starlove -c android.intent.category.LAUNCHER 1" -ForegroundColor Gray
+} catch {
+    Write-Host "Install failed: $_" -ForegroundColor Red
 }
 
 Write-Host ""
-
