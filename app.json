@@ -4,11 +4,9 @@
     "slug": "starlove-videochat",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/starlove-icon.png",
     "userInterfaceStyle": "light",
-    "description": "星恋 - 让每一颗心都找到属于自己的星星 - 基于地理位置的视频聊天社交应用",
+    "description": "星恋 - 让每一颗心都找到属于自己的星星",
     "splash": {
-      "image": "./assets/starlove-splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#1a1a2e"
     },
@@ -17,36 +15,14 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.starlove.videochat",
-      "infoPlist": {
-        "NSCameraUsageDescription": "星恋需要访问相机以进行视频聊天",
-        "NSMicrophoneUsageDescription": "星恋需要访问麦克风以进行语音通话",
-        "NSLocationWhenInUseUsageDescription": "星恋需要访问位置信息以匹配附近的用户"
-      }
+      "bundleIdentifier": "com.starlove.videochat"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/starlove-adaptive-icon.png",
-        "backgroundColor": "#1a1a2e"
-      },
-      "package": "com.starlove.videochat",
-      "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.INTERNET",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
-      ]
+      "package": "com.starlove.videochat"
     },
     "web": {
-      "favicon": "./assets/starlove-favicon.png"
+      "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-camera",
-      "expo-location",
-      "expo-notifications"
-    ],
     "extra": {
       "eas": {
         "projectId": "starlove-videochat"
