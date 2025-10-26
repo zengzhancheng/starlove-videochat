@@ -1,26 +1,21 @@
 ﻿{
   "name": "starlove-videochat",
   "version": "1.0.0",
-  "description": "星恋 - 让每一颗心都找到属于自己的星星 - 基于地理位置的视频聊天社交应用",
+  "description": "星恋 - 让每一颗心都找到属于自己的星星",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build": "eas build",
-    "build:android": "eas build --platform android",
-    "build:ios": "eas build --platform ios"
+    "build": "expo build",
+    "build:android": "expo build:android",
+    "build:ios": "expo build:ios"
   },
   "dependencies": {
     "react": "18.2.0",
     "react-native": "0.72.6",
-    "expo": "~50.0.0",
-    "expo-status-bar": "~1.11.0",
-    "expo-constants": "~15.4.0",
-    "expo-device": "~5.9.0",
-    "expo-font": "~11.10.0",
-    "expo-splash-screen": "~0.26.0"
+    "expo": "~49.0.15"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
