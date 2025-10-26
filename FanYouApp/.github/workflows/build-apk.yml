@@ -1,0 +1,145 @@
+name: 🚀 Build FanYouApp APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm install
+      
+    - name: 🔧 Setup Expo
+      uses: expo/expo-github-action@v8
+      with:
+        expo-version: latest
+        token: ${{ secrets.EXPO_TOKEN }}
+        
+    - name: 🏗️ Build APK with EAS
+      run: |
+        eas build --platform android --profile preview --non-interactive --wait
+        
+    - name: 📱 Download APK
+      run: |
+        # 获取最新的构建
+        BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
+        echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+        
+        # 下载APK
+        eas build:download $BUILD_ID --output ./FanYouApp.apk
+        
+    - name: 📤 Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: FanYouApp-APK
+        path: FanYouApp.apk
+        retention-days: 30
+        
+    - name: 📊 Create Release
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: FanYouApp.apk
+        tag_name: v${{ github.run_number }}
+        name: FanYouApp v${{ github.run_number }}
+        body: |
+          🎉 FanYouApp APK 自动构建完成！
+          
+          📱 **版本**: v${{ github.run_number }}
+          📅 **构建时间**: ${{ github.event.head_commit.timestamp }}
+          🔄 **提交**: ${{ github.sha }}
+          
+          ## 📥 下载APK
+          点击下方下载按钮获取APK文件
+          
+          ## 📋 安装说明
+          1. 下载APK文件到手机
+          2. 启用"未知来源"安装
+          3. 授予必要权限
+          4. 开始使用饭友APP
+          
+          ## 🔧 功能特性
+          - ✅ 用户注册和登录
+          - ✅ 地理位置匹配
+          - ✅ 实时聊天
+          - ✅ 视频通话
+          - ✅ 推送通知
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-ios:
+    runs-on: macos-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📦 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 📦 Install dependencies
+      run: npm install
+      
+    - name: 🔧 Setup Expo
+      uses: expo/expo-github-action@v8
+      with:
+        expo-version: latest
+        token: ${{ secrets.EXPO_TOKEN }}
+        
+    - name: 🏗️ Build iOS with EAS
+      run: |
+        eas build --platform ios --profile preview --non-interactive --wait
+        
+    - name: 📱 Download iOS build
+      run: |
+        # 获取最新的iOS构建
+        BUILD_ID=$(eas build:list --platform ios --limit 1 --json | jq -r '.[0].id')
+        echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
+        
+        # 下载IPA
+        eas build:download $BUILD_ID --output ./FanYouApp.ipa
+        
+    - name: 📤 Upload iOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: FanYouApp-iOS
+        path: FanYouApp.ipa
+        retention-days: 30
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build-apk]
+    if: always()
+    
+    steps:
+    - name: 📢 Notify build status
+      run: |
+        if [ "${{ needs.build-apk.result }}" == "success" ]; then
+          echo "✅ APK构建成功！"
+          echo "📱 可以在Release页面下载APK文件"
+        else
+          echo "❌ APK构建失败"
+          echo "请检查构建日志"
+        fi
+
