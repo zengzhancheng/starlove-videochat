@@ -43,9 +43,9 @@ jobs:
       timeout-minutes: 45
       continue-on-error: true
       
-    # Fallback: Create simple APK if EAS build fails
+    # Fallback: Create simple APK if EAS build fails  
     - name: 🔄 Fallback: Create minimal APK
-      if: failure()
+      if: always()
       run: |
         echo "EAS build failed, creating minimal APK structure"
         mkdir -p apk/META-INF apk/assets
