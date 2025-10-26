@@ -1,56 +1,109 @@
-name: Build APK for 星恋
+name: 🚀 星恋自动构建
 
 on:
   push:
     branches: [ main, master ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    
     steps:
-    - uses: actions/checkout@v3
+    - name: 📥 检出代码
+      uses: actions/checkout@v3
 
-    - name: Setup Node.js
+    - name: 📦 设置Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
 
-    - name: Create minimal Android project
-      run: |
-        mkdir -p android-app
-        cd android-app
-        
-        # Create a simple AndroidManifest.xml
-        mkdir -p src/main
-        cat > src/main/AndroidManifest.xml <<EOF
-        <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-          <application android:label="星恋">
-            <activity android:name=".MainActivity"/>
-          </application>
-        </manifest>
-        EOF
-        
-        # Create a dummy MainActivity
-        mkdir -p src/main/java/com/starlove
-        cat > src/main/java/com/starlove/MainActivity.java <<EOF
-        package com.starlove;
-        import android.app.Activity;
-        public class MainActivity extends Activity {}
-        EOF
+    - name: 📦 安装依赖
+      run: npm install
 
-    - name: Build and package APK
+    - name: 🔧 设置Expo CLI
+      run: npm install -g @expo/cli@latest
+
+    - name: 🔐 登录EAS
+      run: eas login --non-interactive
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    - name: 🏗️ 初始化EAS项目
+      run: eas project:init --non-interactive
+
+    - name: 🚀 构建APK
+      id: build
       run: |
-        cd android-app
-        # For demonstration, create a simple archive
-        tar -czf ../starlove-app.tar.gz src/
-        zip -r ../starlove.apk src/
-        
-    - name: Upload APK
+        echo "开始构建APK..."
+        eas build --platform android --profile production --non-interactive --wait
+        echo "构建完成"
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    - name: 📥 下载APK
+      run: |
+        BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
+        echo "构建ID: $BUILD_ID"
+        eas build:download $BUILD_ID --output ./starlove.apk
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    - name: 📤 上传Artifact
       uses: actions/upload-artifact@v4
       with:
         name: starlove-apk
-        path: "*.apk"
+        path: starlove.apk
         retention-days: 30
+
+    - name: 📝 创建Release
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: starlove.apk
+        tag_name: v${{ github.run_number }}
+        name: 星恋 v${{ github.run_number }}
+        body: |
+          🎉 星恋APK自动构建完成！
+          
+          📱 **应用名称**: 星恋
+          📱 **版本**: v${{ github.run_number }}
+          📅 **构建时间**: ${{ github.event.head_commit.timestamp }}
+          🔄 **提交**: ${{ github.sha }}
+          
+          ## 📥 下载APK
+          点击下方下载按钮获取APK文件
+          
+          ## 📋 安装说明
+          1. 下载APK文件到手机
+          2. 启用"未知来源"安装
+          3. 授予必要权限
+          4. 开始使用星恋
+          
+          ## 🌟 功能特性
+          - ✅ 视频聊天
+          - ✅ 地理位置匹配
+          - ✅ 实时消息
+          - ✅ 推送通知
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: always()
+    
+    steps:
+    - name: 📢 通知构建状态
+      run: |
+        if [ "${{ needs.build.result }}" == "success" ]; then
+          echo "✅ APK构建成功！"
+          echo "📱 可以在Release页面下载APK文件"
+        else
+          echo "❌ APK构建失败"
+          echo "请检查构建日志"
+        fi
