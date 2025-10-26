@@ -1,4 +1,4 @@
-name: 🚀 星恋自动构建
+name: 🚀 星恋自动构建 - Real APK
 
 on:
   push:
@@ -8,11 +8,16 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     
     steps:
     - name: 📥 Checkout
       uses: actions/checkout@v3
+
+    - name: 📦 Setup Node.js  
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
 
     - name: 📦 Install dependencies
       run: npm install
@@ -25,31 +30,21 @@ jobs:
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-    - name: 🚀 Build APK with Expo EAS
+    - name: 🏗️ Build with Expo
       run: |
-        # Install EAS CLI
+        # Use expo-build for cloud builds
         npm install -g eas-cli
-        
-        # Initialize EAS project
-        eas project:init --non-interactive || true
-        
-        # Build APK using EAS
         eas build --platform android --profile production --non-interactive --wait
-        
-        # Download the built APK
-        BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
-        echo "Build ID: $BUILD_ID"
-        eas build:download $BUILD_ID --output ./starlove.apk
-        
-        # Verify APK
-        ls -lh starlove.apk
-        file starlove.apk
-        
-        # Extract APK structure
-        unzip -l starlove.apk | head -20
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      timeout-minutes: 60
+      timeout-minutes: 25
+
+    - name: 📥 Download APK
+      run: |
+        BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
+        eas build:download $BUILD_ID --output ./starlove.apk
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
     - name: 📤 Upload Artifact
       uses: actions/upload-artifact@v4
