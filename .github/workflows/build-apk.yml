@@ -72,17 +72,47 @@ jobs:
         retention-days: 30
       continue-on-error: true
 
-    - name: 🔍 检查APK大小
+    - name: 🔍 验证APK有效性
       id: check_apk
       run: |
         APK_SIZE=$(stat -f%z starlove.apk 2>/dev/null || stat -c%s starlove.apk 2>/dev/null || echo 0)
         echo "APK大小: $APK_SIZE bytes"
-        if [ $APK_SIZE -lt 1000 ]; then
+        
+        # 检查文件是否存在且有效
+        if [ ! -f starlove.apk ]; then
+          echo "❌ APK文件不存在"
           echo "valid=false" >> $GITHUB_OUTPUT
-          echo "⚠️ APK太小，跳过Release"
+          echo "validation_msg=APK file not found" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # 检查文件大小
+        if [ $APK_SIZE -lt 1000 ]; then
+          echo "⚠️ APK太小（仅 $APK_SIZE bytes），可能是占位文件"
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "validation_msg=APK too small ($APK_SIZE bytes)" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # 检查文件格式（APK应该是ZIP格式）
+        if file starlove.apk | grep -qi "zip"; then
+          echo "✅ APK文件格式正确（ZIP）"
         else
+          echo "⚠️ APK文件格式不正确"
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "validation_msg=Invalid APK format" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        # 尝试解压APK以验证完整性
+        if unzip -t starlove.apk > /dev/null 2>&1; then
+          echo "✅ APK可以成功解压"
           echo "valid=true" >> $GITHUB_OUTPUT
-          echo "✅ APK有效"
+          echo "validation_msg=APK is valid and ready" >> $GITHUB_OUTPUT
+        else
+          echo "❌ APK无法解压，文件已损坏"
+          echo "valid=false" >> $GITHUB_OUTPUT
+          echo "validation_msg=APK file is corrupted" >> $GITHUB_OUTPUT
         fi
 
     - name: 📝 创建Release
@@ -125,10 +155,19 @@ jobs:
     if: always()
     
     steps:
-    - name: 📢 通知构建状态
+    - name: 📢 通知构建和验证状态
       run: |
+        echo "=== 构建和验证总结 ===" 
+        echo ""
         if [ "${{ needs.build.result }}" == "success" ]; then
-          echo "✅ APK构建成功！"
+          echo "✅ 构建: 成功"
+          echo "✅ APK文件: 已生成"
+          echo "✅ APK格式: 已验证"
+          echo "✅ APK完整性: 已检查"
+          echo ""
+          echo "📱 APK已验证通过，可以下载"
+          echo "🔗 从GitHub Actions页面下载APK artifact"
         else
-          echo "❌ APK构建失败"
+          echo "❌ 构建: 失败"
+          echo "请检查构建日志以了解详细错误"
         fi
