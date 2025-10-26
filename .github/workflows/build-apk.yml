@@ -30,43 +30,26 @@ jobs:
         # Install EAS CLI
         npm install -g eas-cli
         
+        # Initialize EAS project
+        eas project:init --non-interactive || true
+        
         # Build APK using EAS
         eas build --platform android --profile production --non-interactive --wait
         
         # Download the built APK
         BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
+        echo "Build ID: $BUILD_ID"
         eas build:download $BUILD_ID --output ./starlove.apk
         
+        # Verify APK
         ls -lh starlove.apk
+        file starlove.apk
+        
+        # Extract APK structure
+        unzip -l starlove.apk | head -20
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-      timeout-minutes: 45
-      continue-on-error: true
-      
-    # Fallback: Create simple APK if EAS build fails  
-    - name: 🔄 Fallback: Create minimal APK
-      if: always()
-      run: |
-        echo "EAS build failed, creating minimal APK structure"
-        mkdir -p apk/META-INF apk/assets
-        echo "Manifest-Version: 1.0" > apk/META-INF/MANIFEST.MF
-        echo "Created-By: GitHub Actions" >> apk/META-INF/MANIFEST.MF
-        cat > apk/AndroidManifest.xml <<'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.starlove">
-            <application android:label="星恋">
-                <activity android:name=".MainActivity" android:exported="true">
-                    <intent-filter>
-                        <action android:name="android.intent.action.MAIN"/>
-                        <category android:name="android.intent.category.LAUNCHER"/>
-                    </intent-filter>
-                </activity>
-            </application>
-        </manifest>
-        EOF
-        echo "resources" > apk/resources.arsc
-        cd apk && zip -r ../starlove.apk . && cd ..
-        ls -lh starlove.apk
+      timeout-minutes: 60
 
     - name: 📤 Upload Artifact
       uses: actions/upload-artifact@v4
