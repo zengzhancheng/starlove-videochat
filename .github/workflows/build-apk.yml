@@ -3,34 +3,46 @@ name: Build APK for 星恋
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Setup Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '18'
+        cache: 'npm'
 
     - name: Install dependencies
-      run: npm install
+      run: npm ci
 
     - name: Setup Expo CLI
-      run: npm install -g @expo/cli
+      run: npm install -g @expo/cli@latest
+
+    - name: Setup EAS CLI
+      run: npm install -g @expo/eas-cli@latest
+
+    - name: Login to Expo
+      run: eas login --non-interactive
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    - name: Configure EAS
+      run: eas build:configure
 
     - name: Build APK
-      run: npx expo build:android --type apk
+      run: eas build --platform android --non-interactive --local
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: starlove-apk
-        path: *.apk
+        path: "*.apk"
+        retention-days: 30

@@ -46,6 +46,11 @@
       "expo-camera",
       "expo-location",
       "expo-notifications"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "starlove-videochat"
+      }
+    }
   }
 }
