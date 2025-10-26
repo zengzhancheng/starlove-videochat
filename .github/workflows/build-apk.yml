@@ -15,58 +15,42 @@ jobs:
     - name: 📥 检出代码
       uses: actions/checkout@v3
 
-    - name: 📦 设置Node.js (已跳过npm install)
+    - name: 📦 设置Node.js
       uses: actions/setup-node@v3
       with:
         node-version: '18'
 
-    - name: 🏗️ 创建简单Android项目
-      timeout-minutes: 5
-      run: |
-        mkdir -p android-app/src/main/java/com/starlove
-        mkdir -p android-app/src/main/res
-        
-        # Create AndroidManifest.xml
-        cat > android-app/src/main/AndroidManifest.xml <<'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.starlove">
-          <application android:label="星恋">
-            <activity android:name=".MainActivity" android:exported="true">
-              <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-              </intent-filter>
-            </activity>
-          </application>
-        </manifest>
-        EOF
-        
-        # Create MainActivity.java
-        cat > android-app/src/main/java/com/starlove/MainActivity.java <<'EOF'
-        package com.starlove;
-        import android.app.Activity;
-        import android.os.Bundle;
-        
-        public class MainActivity extends Activity {
-          @Override
-          protected void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-          }
-        }
-        EOF
+    - name: 📦 安装项目依赖
+      run: npm install
 
-    - name: 📦 打包APK
-      timeout-minutes: 5
-      run: |
-        cd android-app
-        zip -r ../starlove.apk src/ || echo "zip failed, trying basic archive"
-        cd ..
-        # 如果zip失败，创建简单的tar文件
-        if [ ! -f starlove.apk ]; then
-          tar -czf starlove.apk android-app/src/
-        fi
-        ls -lh *.apk || echo "No APK file found"
+    - name: 🔧 安装EAS CLI
+      run: npm install -g eas-cli@latest
+
+    - name: 🔐 登录Expo
+      run: eas login --non-interactive
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    - name: 🏗️ 初始化EAS项目
+      run: eas project:init --non-interactive
       continue-on-error: true
+
+    - name: 🚀 EAS云端构建APK
+      timeout-minutes: 30
+      run: |
+        echo "Starting EAS build..."
+        eas build --platform android --profile production --non-interactive --wait
+        echo "Build completed"
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+    - name: 📥 下载构建的APK
+      run: |
+        BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
+        echo "Building ID: $BUILD_ID"
+        eas build:download $BUILD_ID --output ./starlove.apk
+      env:
+        EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
     - name: 📤 上传Artifact
       uses: actions/upload-artifact@v4
