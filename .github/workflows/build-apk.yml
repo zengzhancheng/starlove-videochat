@@ -15,39 +15,35 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '16'
+        node-version: '18'
         cache: 'npm'
 
     - name: Install dependencies
       run: npm install
 
-    - name: Setup Expo CLI
-      run: npm install -g @expo/cli@6.3.10
+    - name: Setup EAS CLI
+      run: npm install -g eas-cli
 
-    - name: Login to Expo
-      run: expo login --non-interactive
+    - name: Login to EAS
+      run: eas login --non-interactive
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-    - name: Build APK
-      run: expo build:android --type apk --non-interactive
+    - name: Build APK with EAS
+      run: eas build --platform android --profile production --non-interactive
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-    - name: Download APK
+    - name: Get latest build and download
       run: |
-        # 等待构建完成
-        sleep 60
-        
-        # 获取构建列表并下载
-        expo build:list --platform android --limit 1
-        BUILD_ID=$(expo build:list --platform android --limit 1 --json | jq -r '.[0].id')
-        echo "下载构建ID: $BUILD_ID"
-        expo build:download $BUILD_ID
+        sleep 10
+        BUILD_ID=$(eas build:list --platform android --limit 1 --json | jq -r '.[0].id')
+        echo "找到构建: $BUILD_ID"
+        eas build:download $BUILD_ID --output ./starlove.apk
       env:
         EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
-    - name: Upload APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: starlove-apk

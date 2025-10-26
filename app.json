@@ -18,7 +18,11 @@
       "bundleIdentifier": "com.starlove.videochat"
     },
     "android": {
-      "package": "com.starlove.videochat"
+      "package": "com.starlove.videochat",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#1a1a2e"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
