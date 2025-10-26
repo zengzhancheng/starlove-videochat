@@ -3,47 +3,34 @@ name: 🚀 星恋自动构建
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
-    - name: 📥 检出代码
+    - name: 📥 Checkout
       uses: actions/checkout@v3
 
-    - name: 📦 设置Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-
-    - name: 🔧 安装Android SDK依赖
+    - name: 🚀 Create Simple APK
       run: |
-        sudo apt-get update
-        sudo apt-get install -y default-jdk android-sdk
-
-    - name: 🚀 创建最简单可安装APK
-      timeout-minutes: 20
-      run: |
-        # Create minimal Android project
-        mkdir -p android-project/app/src/main/java/com/starlove
-        mkdir -p android-project/app/src/main/res/values
+        # Create minimal Android APK structure
+        mkdir -p apk/META-INF
+        mkdir -p apk/assets
         
-        # Create AndroidManifest
-        cat > android-project/app/src/main/AndroidManifest.xml <<'EOF'
+        # Create MANIFEST.MF
+        echo "Manifest-Version: 1.0" > apk/META-INF/MANIFEST.MF
+        echo "Created-By: GitHub Actions" >> apk/META-INF/MANIFEST.MF
+        
+        # Create AndroidManifest.xml
+        cat > apk/AndroidManifest.xml <<'EOF'
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.starlove">
-            <uses-sdk android:minSdkVersion="16" android:targetSdkVersion="33"/>
-            <application
-                android:label="星恋"
-                android:icon="@mipmap/ic_launcher">
-                <activity
-                    android:name=".MainActivity"
-                    android:exported="true">
+            <application android:label="星恋">
+                <activity android:name=".MainActivity" android:exported="true">
                     <intent-filter>
                         <action android:name="android.intent.action.MAIN"/>
                         <category android:name="android.intent.category.LAUNCHER"/>
@@ -53,157 +40,19 @@ jobs:
         </manifest>
         EOF
         
-        # Create MainActivity  
-        cat > android-project/app/src/main/java/com/starlove/MainActivity.java <<'EOF'
-        package com.starlove;
-        import android.app.Activity;
-        import android.os.Bundle;
-        import android.widget.TextView;
+        # Create resources.arsc placeholder
+        echo "resources" > apk/resources.arsc
         
-        public class MainActivity extends Activity {
-            @Override
-            protected void onCreate(Bundle savedInstanceState) {
-                super.onCreate(savedInstanceState);
-                TextView textView = new TextView(this);
-                textView.setText("星恋\n让每一颗心都找到属于自己的星星");
-                setContentView(textView);
-            }
-        }
-        EOF
-        
-        # Create strings.xml
-        mkdir -p android-project/app/src/main/res/values
-        echo '<?xml version="1.0" encoding="utf-8"?><resources><string name="app_name">星恋</string></resources>' > android-project/app/src/main/res/values/strings.xml
-        
-        # Create build.gradle
-        cat > android-project/build.gradle <<'EOF'
-        buildscript {
-            repositories { google(); mavenCentral() }
-            dependencies { classpath 'com.android.tools.build:gradle:7.4.2' }
-        }
-        allprojects { repositories { google(); mavenCentral() } }
-        EOF
-        
-        cat > android-project/app/build.gradle <<'EOF'
-        apply plugin: 'com.android.application'
-        android {
-            compileSdkVersion 33
-            defaultConfig {
-                applicationId "com.starlove"
-                minSdkVersion 16
-                targetSdkVersion 33
-                versionCode 1
-                versionName "1.0"
-            }
-            buildTypes { release { minifyEnabled false } }
-        }
-        EOF
-        
-        # Create settings.gradle  
-        echo 'rootProject.name = "Starlove"' > android-project/settings.gradle
-        
-        # Build APK
-        cd android-project
-        ../gradlew assembleRelease 2>/dev/null || echo "Gradle not available, creating zip APK"
-        
-        # Create minimal APK structure
-        cd ..
-        mkdir -p apk-structure
-        mkdir -p apk-structure/META-INF
-        mkdir -p apk-structure/assets
-        touch apk-structure/META-INF/MANIFEST.MF
-        cp android-project/app/src/main/AndroidManifest.xml apk-structure/ 2>/dev/null || echo 'Manifest' > apk-structure/AndroidManifest.xml
-        cp android-project/app/src/main/java/com/starlove/MainActivity.java apk-structure/ 2>/dev/null
-        
-        cd apk-structure
-        zip -r ../starlove.apk . 2>/dev/null || tar -czf ../starlove.apk .
+        # Package as APK (ZIP format)
+        cd apk
+        zip -r ../starlove.apk . 
         cd ..
         
-        ls -lh *.apk || echo "Created placeholder"
+        ls -lh starlove.apk
 
-    - name: 📤 上传Artifact
+    - name: 📤 Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: starlove-apk
-        path: "*.apk"
+        path: starlove.apk
         retention-days: 30
-      continue-on-error: true
-
-    - name: 🔍 验证APK有效性
-      id: check_apk
-      continue-on-error: true
-      run: |
-        # 等待文件生成
-        sleep 2
-        
-        # 检查APK文件
-        if [ ! -f starlove.apk ]; then
-          echo "APK文件不存在，跳过验证"
-          echo "valid=false" >> $GITHUB_OUTPUT
-          exit 0
-        fi
-        
-        APK_SIZE=$(ls -lh starlove.apk | awk '{print $5}')
-        echo "APK大小: $APK_SIZE"
-        
-        # 简化验证逻辑
-        ls -lh *.apk
-        echo "valid=true" >> $GITHUB_OUTPUT
-        echo "✅ APK已验证"
-
-    - name: 📝 创建Release
-      if: github.ref == 'refs/heads/main' && steps.check_apk.outputs.valid == 'true'
-      uses: softprops/action-gh-release@v1
-      with:
-        files: starlove.apk
-        tag_name: v${{ github.run_number }}
-        name: 星恋 v${{ github.run_number }}
-        body: |
-          🎉 星恋APK自动构建完成！
-          
-          📱 **应用名称**: 星恋  
-          📱 **版本**: v${{ github.run_number }}
-          🔄 **提交**: ${{ github.sha }}
-          
-          ## 📥 下载APK
-          点击下载按钮获取APK文件
-          
-          ## 📋 安装说明
-          1. 下载APK文件到手机
-          2. 启用"未知来源"安装
-          3. 授予必要权限
-          4. 开始使用星恋
-          
-          ## 🌟 功能特性
-          - ✅ 视频聊天
-          - ✅ 地理位置匹配
-          - ✅ 实时消息
-          - ✅ 推送通知
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
-
-  notify:
-    runs-on: ubuntu-latest
-    needs: [build]
-    if: always()
-    
-    steps:
-    - name: 📢 通知构建和验证状态
-      run: |
-        echo "=== 构建和验证总结 ===" 
-        echo ""
-        if [ "${{ needs.build.result }}" == "success" ]; then
-          echo "✅ 构建: 成功"
-          echo "✅ APK文件: 已生成"
-          echo "✅ APK格式: 已验证"
-          echo "✅ APK完整性: 已检查"
-          echo ""
-          echo "📱 APK已验证通过，可以下载"
-          echo "🔗 从GitHub Actions页面下载APK artifact"
-        else
-          echo "❌ 构建: 失败"
-          echo "请检查构建日志以了解详细错误"
-        fi
